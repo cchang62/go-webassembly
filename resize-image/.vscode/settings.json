@@ -1,0 +1,13 @@
+{
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#213312",
+        "titleBar.activeBackground": "#2E4719",
+        "titleBar.activeForeground": "#F7FBF4"
+    },
+    "gopls": {
+        "build.env": {
+        "GOOS": "js",
+        "GOARCH": "wasm"
+        }
+    }
+}

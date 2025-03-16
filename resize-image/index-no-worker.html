@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>WebAssembly - Image Operation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+</head>
+
+<body>
+    <div class="container mt-3">
+        <div class="row mb-3">
+            <div class="row">
+                <h2>Original Image</h2>
+                <div class="col">
+                    <img id="srcImage" width="1280" height="720" src="/asset/mountain-range.jpg" alt="Original Image" />
+                </div>
+            </div>
+
+        </div>
+        <div class="row">
+            <h1>Image Resizer</h1>
+            <div class="col hstack gap-3 align-items-end">
+            <div>
+                <label for="width">Width</label>
+                <input class="form-control" type="number" id="width" value="640" min="1" />
+            </div>
+            <div>
+                <label for="height">Height</label>
+                <input type="number" class="form-control" id="height" value="360" min="1" />
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="goResize()">Resize Image</button>
+            </div>
+            </div>
+            <h2>After</h2>
+            <h3>Golang Return ArrayBuffer</h3>
+            <div class="col">
+                <img id="resizeImage1" src="/asset/dummy-image.png" alt="Resized Image" />
+            </div>
+            <h3>Golang Return Base64</h3>
+            <div class="col">
+                <img id="resizeImage2" src="/asset/dummy-image.png" alt="Resized Image" />
+            </div>
+        </div>
+        <div class="row">
+            <h1>Flip Horizontally</h1>
+            <div class="col hstack gap-3 align-items-end">
+            <div>
+                <button class="btn btn-primary" onclick="goFlipH()">FlipH Image</button>
+            </div>
+            </div>
+            <h2>After</h2>
+            <div class="col">
+                <img id="flipImageH" src="/asset/dummy-image.png" alt="Horizontally Flip Image" />
+            </div>
+        </div>
+        <div class="row">
+            <h1>Gray Scale</h1>
+            <div class="col hstack gap-3 align-items-end">
+            <div>
+                <button class="btn btn-primary" onclick="goGray()">Gray Image</button>
+            </div>
+            </div>
+            <h2>After</h2>
+            <div class="col">
+                <img id="grayImage" src="/asset/dummy-image.png" alt="Gray Scale Image" />
+            </div>
+        </div>
+    </div>
+    <script src="asset/wasm_exec.js"></script>
+    <script>
+        var srcImgBytes;
+        var image = document.getElementById('srcImage');
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', image.src, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                srcImgBytes = new Uint8Array(xhr.response);
+            }
+        };
+        xhr.send();
+
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch('asset/main.wasm'), go.importObject).then((source) => {
+            go.run(source.instance);
+            window.goResize = () => {
+                let width = parseInt(document.getElementById('width').value);
+                let height = parseInt(document.getElementById('height').value);
+                let newImgBytes = Resize(width, height, srcImgBytes, 'arraybuffer');
+                console.log(newImgBytes)
+                // Go return ArrayBuffer, and then convert to Base64    
+                let base64str = btoa(new Uint8Array(newImgBytes).reduce(function (data, byte) {
+                    return data + String.fromCharCode(byte);
+                }, ''));
+                document.getElementById('resizeImage1').src = `data:image/jpg;base64,${base64str}`;
+                // Go return Base64 directly
+                let newResizeBase64 = Resize(width, height, srcImgBytes, 'string');
+                document.getElementById('resizeImage2').src = `data:image/jpg;base64,${newResizeBase64}`;
+            };
+            window.goFlipH = () => {
+                let newFlipImageH = FlipImageH(srcImgBytes, 'string');
+                let imageElmt = document.getElementById('flipImageH');
+                imageElmt.width = `640`;
+                imageElmt.height = `360`;
+                imageElmt.src = `data:image/jpg;base64,${newFlipImageH}`;
+            };
+            window.goGray = () => {
+                let newgGrayImage = GrayImage(srcImgBytes, 'string');
+                let imageElmt = document.getElementById('grayImage');
+                imageElmt.width = `640`;
+                imageElmt.height = `360`;
+                imageElmt.src = `data:image/jpg;base64,${newgGrayImage}`;
+            };
+        });
+    </script>
+</body>
+
+</html>
