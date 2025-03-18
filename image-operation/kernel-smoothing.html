@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kernel Smoothing with Highcharts</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/heatmap.js"></script>
+    <script src="asset/wasm_exec.js"></script>
+</head>
+<body>
+    <div id="container" style="width: 100%; height: 400px;"></div>
+    <script>
+        async function loadWasm() {
+            const go = new Go();
+            const wasm = await WebAssembly.instantiateStreaming(fetch('asset/main.wasm'), go.importObject);
+            go.run(wasm.instance);
+        }
+/*
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch('asset/main.wasm'), go.importObject).then((source) => {
+            go.run(source.instance);
+            window.goResize = () => {
+            }
+        });
+*/
+        function renderChart(data, rows, cols) {
+            const seriesData = [];
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    seriesData.push([j, i, data[i * cols + j]]);
+                }
+            }
+
+            Highcharts.chart('container', {
+                chart: {
+                    type: 'heatmap',
+                    marginTop: 40,
+                    marginBottom: 40,
+                    plotBorderWidth: 1
+                },
+                title: {
+                    text: 'Kernel Smoothing'
+                },
+                xAxis: {
+                    categories: Array.from({ length: cols }, (_, i) => i)
+                },
+                yAxis: {
+                    categories: Array.from({ length: rows }, (_, i) => i),
+                    title: null
+                },
+                colorAxis: {
+                    min: 0,
+                    minColor: '#FFFFFF',
+                    maxColor: Highcharts.getOptions().colors[0]
+                },
+                legend: {
+                    align: 'right',
+                    layout: 'vertical',
+                    margin: 0,
+                    verticalAlign: 'top',
+                    y: 25,
+                    symbolHeight: 280
+                },
+                series: [{
+                    name: 'Smoothed Data',
+                    borderWidth: 1,
+                    data: seriesData,
+                    dataLabels: {
+                        enabled: true,
+                        color: '#000000'
+                    }
+                }]
+            });
+        }
+
+        async function main() {
+            await loadWasm();
+
+            const rows = 100;
+            const cols = 1;
+            const data = new Float64Array(rows * cols).map(() => Math.random() * 100);
+
+            // const smoothedData = KernelSmoothing(rows, cols, data);
+            const smoothedData = await new Promise((resolve) => {
+                const result = KernelSmoothing(rows, cols, data);
+                resolve(result);
+            });
+            
+
+            renderChart(smoothedData, rows, cols);
+        }
+
+        main();
+    </script>
+</body>
+</html>

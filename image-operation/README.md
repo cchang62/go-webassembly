@@ -100,6 +100,7 @@ This project demonstrates how to use Go to compile WebAssembly (Wasm) modules.
 - [WebAssembly Blog 1](https://medium.com/starbugs/run-golang-on-browser-using-wasm-c0db53d89775)
 - [Photo Collection](https://unsplash.com/s/photos/outdoor)
 - [Js Worker](https://blog.boot.dev/golang/running-go-in-the-browser-wasm-web-workers/)
+- [Golang Slice](https://github.com/golang/go/issues/32402)
 
   ```js
     --------------------------------------------------
