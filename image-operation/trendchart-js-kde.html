@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kernel Smoothing with Highcharts</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="asset/wasm_exec.js"></script>
+</head>
+
+<body>
+    <div id="container" style="width: 100%; height: 400px;"></div>
+    <script>
+        async function loadWasm() {
+            const go = new Go();
+            const wasm = await WebAssembly.instantiateStreaming(fetch('asset/main.wasm'), go.importObject);
+            go.run(wasm.instance);
+        }
+
+        function renderChart(smoothedData, rows, cols) {
+            let dataSource = Array.from({ length: 1200 }, () => Math.random() * 100);
+            let xiData = [];
+            let range = 100,
+                startPoint = 0;
+            for (let i = 0; i < range; i++) {
+                xiData[i] = startPoint + i;
+            }
+
+            let dataOrigine = [];
+            for (let i = 0; i < dataSource.length; i++) {
+                dataOrigine.push([dataSource[i], 0]);
+            }
+
+            let dataPoint = [];
+            for (let i = 0; i < dataSource.length; i++) {
+                dataPoint.push([dataSource[i], 0]);
+            }
+
+            let kdeData = [];
+
+            function GaussKDE(xi, x) {
+                return (1 / Math.sqrt(2 * Math.PI)) * Math.exp(Math.pow(xi - x, 2) / -2);
+            }
+
+            let N = dataSource.length;
+            let kernelChart = [];
+            let kernel = [];
+            let animationTime = 4000;
+
+            // Create the density estimate
+            for (let i = 0; i < xiData.length; i++) {
+                let temp = 0;
+                kernel.push([]);
+                kernel[i].push(new Array(dataSource.length));
+                for (let j = 0; j < dataSource.length; j++) {
+                    temp = temp + GaussKDE(xiData[i], dataSource[j]);
+                    kernel[i][j] = GaussKDE(xiData[i], dataSource[j]);
+                }
+                kdeData.push([xiData[i], (1 / N) * temp]);
+            }
+
+            // Create the kernels
+            for (let i = 0; i < dataSource.length; i++) {
+                kernelChart.push([]);
+                kernelChart[i].push(new Array(kernel.length));
+                for (let j = 0; j < kernel.length; j++) {
+                    kernelChart[i].push([xiData[j], (1 / N) * kernel[j][i]]);
+                }
+            }
+
+            Highcharts.chart("container", {
+                chart: {
+                    type: "spline",
+                    animation: true
+                },
+                title: {
+                    text: "Gaussian Kernel Density Estimation (KDE)"
+                },
+                yAxis: {
+                    // type: 'logarithmic',
+                    title: { text: null }
+                },
+                tooltip: {
+                    valueDecimals: 3
+                },
+                plotOptions: {
+                    series: {
+                        marker: {
+                            enabled: false
+                        },
+                        dashStyle: "shortdot",
+                        color: "#ff8d1e",
+                        pointStart: xiData[0],
+                        animation: {
+                            duration: animationTime
+                        }
+                    }
+                },
+
+                series: [
+                    {
+                        type: "scatter",
+                        name: "Observation",
+                        marker: {
+                            enabled: true,
+                            radius: 5,
+                            fillColor: "#ff1e1f"
+                        },
+                        data: dataPoint,//.slice(0, 1000), // Limit the number of points for better performance
+                        tooltip: {
+                            headerFormat: "{series.name}:",
+                            pointFormat: "<b>{point.x}</b>"
+                        },
+                        zIndex: 9
+                    },
+                    {
+                        name: "KDE",
+                        dashStyle: "solid",
+                        lineWidth: 2,
+                        color: "#1E90FF",
+                        data: kdeData
+                    },
+                    {
+                        name: "k(" + dataSource[0] + ")",
+                        data: kernelChart[0]
+                    },
+                    {
+                        name: "k(" + dataSource[1] + ")",
+                        data: kernelChart[1]
+                    },
+                    {
+                        name: "k(" + dataSource[2] + ")",
+                        data: kernelChart[2]
+                    },
+                    {
+                        name: "k(" + dataSource[3] + ")",
+                        data: kernelChart[3]
+                    },
+                    {
+                        name: "k(" + dataSource[4] + ")",
+                        data: kernelChart[4]
+                    },
+                    {
+                        name: "k(" + dataSource[5] + ")",
+                        data: kernelChart[5]
+                    },
+                    {
+                        name: "k(" + dataSource[6] + ")",
+                        data: kernelChart[6]
+                    }
+                ]
+            });
+
+        }
+
+        async function main() {
+            await loadWasm();
+
+            const rows = 100000;
+            const cols = 1;
+            const data = new Float64Array(rows * cols).map(() => Math.random() * 100);
+
+            const smoothedData = await new Promise((resolve) => {
+                const result = KernelSmoothing(rows, cols, data);
+                resolve(result);
+            });
+
+            renderChart(smoothedData, rows, cols);
+        }
+
+        main();
+    </script>
+</body>
+
+</html>

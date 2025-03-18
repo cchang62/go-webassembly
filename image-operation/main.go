@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"image"
+	"math"
+	"runtime"
 	"syscall/js"
+	"time"
 
 	"github.com/disintegration/imaging"
 )
@@ -142,6 +146,52 @@ func KernelSmoothing(this js.Value, args []js.Value) any {
 	return jsArray
 }
 
+func KernelDensityEstimation(this js.Value, args []js.Value) any {
+	start := time.Now()
+
+	// retrieve args
+	kdeSize := args[0].Int()
+	dataLen := args[1].Get("length").Int()
+	data := make([]int32, dataLen)
+	for i := 0; i < dataLen; i++ {
+		data[i] = int32(args[1].Index(i).Int())
+	}
+
+	// kernel density estimation
+	xiData := make([]int32, kdeSize)
+	for i := 0; i < kdeSize; i++ {
+		xiData[i] = int32(i)
+	}
+
+	kdeData := make([]float64, kdeSize)
+	N := float64(len(data))
+
+	for i := 0; i < len(xiData); i++ {
+		temp := 0.0
+		for j := 0; j < len(data); j++ {
+			temp += GaussKDE(xiData[i], data[j])
+		}
+		kdeData[i] = (1 / N) * temp
+	}
+
+	// create a Float64Array in JavaScript and copy the data
+	jsArray := js.Global().Get("Float64Array").New(len(kdeData))
+	for i, v := range kdeData {
+		jsArray.SetIndex(i, v)
+	}
+
+	elapsed := time.Since(start)
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	fmt.Printf("KernelDensityEstimation took %s and used %d bytes\n", elapsed, memStats.Alloc)
+
+	return jsArray
+}
+
+func GaussKDE(xi, x int32) float64 {
+	return (1 / math.Sqrt(2*math.Pi)) * math.Exp(math.Pow(float64(xi-x), 2)/-2)
+}
+
 /*
 // Convert []float64 to []byte
 func float64SliceToByteSlice(floats []float64) []byte {
@@ -159,5 +209,6 @@ func main() {
 	js.Global().Set("FlipImageH", js.FuncOf(FlipImageH))
 	js.Global().Set("GrayImage", js.FuncOf(GrayImage))
 	js.Global().Set("KernelSmoothing", js.FuncOf(KernelSmoothing))
+	js.Global().Set("KernelDensityEstimation", js.FuncOf(KernelDensityEstimation))
 	select {}
 }
